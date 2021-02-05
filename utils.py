@@ -24,7 +24,7 @@ def prepare_generator_batch(samples, start_letter=0, gpu=False):
     inp[:, 1:] = target[:, :seq_len-1]
 
     inp = torch.tensor(inp, dtype=torch.long)
-    target = torch.Tensor(target, dtype=torch.long)
+    target = torch.tensor(target, dtype=torch.long)
 
     if gpu:
         inp = inp.cuda()
