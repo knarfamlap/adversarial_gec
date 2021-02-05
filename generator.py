@@ -55,9 +55,9 @@ class Generator(nn.Module):
         Samples networks and returns n samples of length max_seq_len
 
         """
-        samples = torch.zeros(n, self.max_seq_len).type(torch.LongTensor)
+        samples = torch.zeros(n, self.max_seq_len, dtype=torch.long)
         h = self.init_hidden(n)
-        x = torch.LongTensor([start_letter] * n, requires_grad=True)
+        x = torch.LongTensor([start_letter] * n)
 
         if self.gpu:
             samples = samples.cuda()
