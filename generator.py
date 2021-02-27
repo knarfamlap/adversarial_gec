@@ -55,7 +55,7 @@ class Generator(nn.Module):
         Samples networks and returns n samples of length max_seq_len
 
         """
-        samples = torch.zeros(n, self.max_seq_len, dtype=torch.long)
+        samples = torch.zeros(n, self.max_seq_len)
         h = self.init_hidden(n)
         x = torch.LongTensor([start_letter] * n)
 
@@ -66,7 +66,7 @@ class Generator(nn.Module):
         for i in range(self.max_seq_len):
             out, h = self.forward(x, h)  # out: n * vocab_sz
             out = torch.multinomial(torch.exp(out), 1)  # n * 1
-            samples[:, 1] = out.view(-1).data
+            samples[:, i] = out.view(-1).data
 
             x = out.view(-1)
 

@@ -11,7 +11,8 @@ from generator import Generator
 from discriminator import Discriminator
 import utils
 
-CUDA = False
+
+CUDA = "cuda" if torch.cuda.is_available() else "cpu"
 VOCAB_SIZE = 5000
 MAX_SEQ_LEN = 20
 START_LETTER = 0
@@ -40,13 +41,13 @@ def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs):
     """
 
     for epoch in range(epochs):
-        print("Epoch {}: ".format(epoch + 1))
+        print("Epoch {}: ".format(epoch + 1), end=" ") 
         sys.stdout.flush()
         total_loss = 0
 
-        for i in range(0, POS_NEG_SAMPLES < BATCH_SIZE):
-            inp, target = helpers.prepare_generator_batch(
-                real_data_samples[i:i + BATCH_SZ],
+        for i in range(0, POS_NEG_SAMPLES, BATCH_SIZE):
+            inp, target = utils.prepare_generator_batch(
+                real_data_samples[i:i + BATCH_SIZE],
                 start_letter=START_LETTER,
                 gpu=CUDA)
             gen_opt.zero_grad()
@@ -79,11 +80,11 @@ def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs):
 
 def train_generator_PG(gen, gen_opt, oracle, dis, num_batches):
 
-    for batch in range(num_batches):
+    for _ in range(num_batches):
         s = gen.samples(BATCH_SIZE * 2)
 
         inp, target = utils.prepare_generator_batch(s,
-                                                    start_letter=START,
+                                                    start_letter=START_LETTER,
                                                     gpu=CUDA)
         rewards = dis.batchClassifiy(target)  # return entire seq reward
 
@@ -95,6 +96,8 @@ def train_generator_PG(gen, gen_opt, oracle, dis, num_batches):
     oracle_loss = utils.batchwise_oracle_nll(gen,
                                              oracle,
                                              POS_NEG_SAMPLES,
+                                             BATCH_SIZE,
+                                             MAX_SEQ_LEN,
                                              start_letter=START_LETTER,
                                              gpu=CUDA)
 
@@ -111,7 +114,7 @@ def train_discriminator(discriminator, dis_opt, real_data_samples, generator,
                                                            gpu=CUDA)
 
     for d_step in range(d_steps):
-        s = helpers.batchwise_sample(generator, POS_NEG_SAMPLES, BATCH_SIZE)
+        s = utils.batchwise_sample(generator, POS_NEG_SAMPLES, BATCH_SIZE)
         dis_inp, dis_target = utils.prepare_discriminator_data(
             real_data_samples, s, gpu=CUDA)
 
@@ -200,7 +203,7 @@ if __name__ == '__main__':
 
     # ADVERSARIAL TRAINING
     print('\nStarting Adversarial Training...')
-    oracle_loss = helpers.batchwise_oracle_nll(gen,
+    oracle_loss = utils.batchwise_oracle_nll(gen,
                                                oracle,
                                                POS_NEG_SAMPLES,
                                                BATCH_SIZE,

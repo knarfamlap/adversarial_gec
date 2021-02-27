@@ -29,8 +29,8 @@ class Discriminator(nn.Module):
 
     def forward(self, x, hidden):
         embed = self.embeddings(x)  # embed input to batch_sz * seq_len * embedding_dim
-        embed = emb.permute(1, 0, 2)  # seq_len * batch_sz * embedding_dim
-        _, hidden = self.gru(emb, hidden) # 4 * batch_sz * hidden_dim
+        embed = embed.permute(1, 0, 2)  # seq_len * batch_sz * embedding_dim
+        _, hidden = self.gru(embed, hidden) # 4 * batch_sz * hidden_dim
         hidden = hidden.permute(1, 0, 2).contigous() 
         out = self.gru2hidden(hidden.view(-1, 4  * self.hidden_dim))
         out = torch.tanh(out)
@@ -49,8 +49,8 @@ class Discriminator(nn.Module):
 
     def batchBCELoss(self, x, target):
         loss_fn = nn.BCELoss()
-        h = self.init_hidden(inp.size()[0]) 
-        out = self.forward(inp, h) 
+        h = self.init_hidden(x.size()[0]) 
+        out = self.forward(x, h) 
 
         return loss_fn(out, target) 
 
