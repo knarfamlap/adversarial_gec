@@ -4,63 +4,76 @@
 import torch
 from math import ceil
 
-def prepare_generator_batch(samples, start_letter=0, gpu=False):
+
+def prepare_generator_batch(samples, start_letter=0, device="cuda"):
     """
     Takes samples (a batch) and returns
 
     Inputs: samples, start_letter, cuda
-        - samples: batch_size x seq_len (Tensor with a sample in each row)
+        - samples: (batch_size, seq_len). Tensor with a sample in each row
 
     Returns: inp, target
-        - inp: batch_size x seq_len (same as target, but with start_letter prepended)
-        - target: batch_size x seq_len (Variable same as samples)
+        - inp: (batch_size, seq_len)
+        - target: (batch_size, seq_len). 
     """
-
+    # get the dimensions of the samples tensor
     batch_size, seq_len = samples.size()
-
+    # create a tensor with zeros of dimensions (batch_size, seq_len)
     inp = torch.zeros(batch_size, seq_len)
+    # set samples to target
     target = samples
+    # set the first column in inp to the start_letter index
     inp[:, 0] = start_letter
+    # sets the rest of the tensor to the target
     inp[:, 1:] = target[:, :seq_len-1]
+    
+    inp = inp.detach().clone()
+    target = target.detach().clone() 
 
-    inp = torch.tensor(inp, dtype=torch.long)
-    target = torch.tensor(target, dtype=torch.long)
-
-    if gpu:
-        inp = inp.cuda()
-        target = target.cuda()
+    inp = inp.to(device)
+    target = target.to(device)
 
     return inp, target
 
 
-def prepare_discriminator_data(pos_samples, neg_samples, gpu=False):
+def prepare_discriminator_data(pos_samples, neg_samples, device="cuda"):
     """
     Takes positive (target) samples, negative (generator) samples and prepares inp and target data for discriminator.
 
     Inputs: pos_samples, neg_samples
-        - pos_samples: pos_size x seq_len
-        - neg_samples: neg_size x seq_len
+        - pos_samples: positive samples of dimensions (num_positive_samples, seq_len)
+        - neg_samples: negative samples of dimensions (num_negative_samples, seq_len)
 
     Returns: inp, target
-        - inp: (pos_size + neg_size) x seq_len
-        - target: pos_size + neg_size (boolean 1/0)
+        - inp: (num_positive_samples + num_negative_samples, seq_len)
+        - target: (1, num_positive_samples + num_negative_samples) Either 1 or 0
     """
 
+    num_rows_pos_samples = pos_samples.size()[0]  # get num rows in pos_samples
+    num_rows_neg_samples = neg_samples.size()[0]  # get num rows in neg_samples
+    # total number of rows in pos_samples and in neg_samples
+    num_rows_pos_neg_samples = num_rows_pos_samples + num_rows_neg_samples
+    # concatenate pos_samples and neg_samples row-wise
     inp = torch.cat((pos_samples, neg_samples), 0).type(torch.LongTensor)
-    target = torch.ones(pos_samples.size()[0] + neg_samples.size()[0])
-    target[pos_samples.size()[0]:] = 0
+    # tensor of row of one and has size num_rows_pos_neg_samples
+    target = torch.ones(num_rows_pos_neg_samples)
+    # convert the non postivie samples to 0
+    target[num_rows_pos_samples:] = 0
 
-    # shuffle
-    perm = torch.randperm(target.size()[0])
-    target = target[perm]
-    inp = inp[perm]
-
-    inp = torch.tensor(inp)
-    target = torch.tensor(target)
-
-    if gpu:
-        inp = inp.cuda()
-        target = target.cuda()
+    # ------- Shuffle ---------
+    # random indices of target
+    rand_indices = torch.randperm(target.size()[0])
+    # shuffle target by passing in the randomized indices
+    target = target[rand_indices]
+    # order the inp tensor with the new shuffled indices
+    inp = inp[rand_indices]
+    # remove from graph and clone
+    inp = inp.detach().clone()
+    # remove from graph and clone
+    target = target.detach().clone()
+    # change to device
+    inp = inp.to(device)
+    target = target.to(device)
 
     return inp, target
 
@@ -81,9 +94,10 @@ def batchwise_sample(gen, num_samples, batch_size):
 def batchwise_oracle_nll(gen, oracle, num_samples, batch_size, max_seq_len, start_letter=0, gpu=False):
     s = batchwise_sample(gen, num_samples, batch_size)
     oracle_nll = 0
-    
+
     for i in range(0, num_samples, batch_size):
-        inp, target = prepare_generator_batch(s[i:i+batch_size], start_letter, gpu)
+        inp, target = prepare_generator_batch(
+            s[i:i+batch_size], start_letter, gpu)
         oracle_loss = oracle.batchNLLLoss(inp, target) / max_seq_len
         oracle_nll += oracle_loss.data.item()
 

@@ -77,7 +77,7 @@ class Generator(nn.Module):
         loss_fn = nn.NLLLoss()
         batch_sz, seq_len = inp.size()
         inp = inp.permute(1, 0)  # seq_len * batch_sz
-        target = inp.permute(1, 0)
+        target = target.permute(1, 0)
         h = self.init_hidden(batch_sz)
 
         loss = 0
