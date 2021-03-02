@@ -28,6 +28,10 @@ if __name__ == "__main__":
     parser.add_argument("--dis_embedding_dim", type=int)
     parser.add_argument("--dis_hidden_dim", type=int)
     parser.add_argument("--device", type=str)
+    parser.add_argument("--oracle_state_path", type=str)
+    parser.add_argument("--oracle_state_dict_path", type=str)
+    parser.add_argument("--pretrained_gen_path", type=str)
+    parser.add_argument("--pretrained_dis_path", type=str)
 
     args = parser.parse_args()
 
@@ -44,16 +48,22 @@ if __name__ == "__main__":
     DIS_EMBEDDING_DIM = args.dis_embedding_dim
     DIS_HIDDEN_DIM = args.dis_hidden_dim
 
+    ORACLE_STATE_PATH = args.oracle_state_path
+    ORACLE_STATE_DICT_PATH = args.oracle_state_dict_path
+    PRETRAINED_GEN_PATH = args.pretrained_gen_path
+    PRETRAINED_DIS_PATH = args.pretrained_dis_path
+
     if args.device == "cpu":
         DEVICE = "cpu"
     else:
-        DEVICE = "cpu" if torch.cuda.is_available() else "cpu"
+        DEVICE = "cuda:{}".format(
+            args.device) if torch.cuda.is_available() else "cpu"
 
     oracle = Generator(GEN_EMBEDDING_DIM, GEN_HIDDEN_DIM,
                        VOCAB_SIZE, MAX_SEQ_LEN)
 
-    oracle = oracle.load_state_dict(torch.load(oracle_state_path))
-    oracle_samples = torch.load(oracle_samples_path).type(torch.LongTensor)
+    oracle = oracle.load_state_dict(torch.load(ORACLE_STATE_DICT_PATH))
+    oracle_samples = torch.load(ORACLE_STATE_PATH).type(torch.LongTensor)
 
     gen = Generator(
         GEN_EMBEDDING_DIM,
