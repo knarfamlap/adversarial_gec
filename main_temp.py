@@ -13,6 +13,19 @@ from generator import Generator
 from discriminator import Discriminator
 import utils
 
+
+def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs):
+    pass
+
+
+def train_generator_PG(gen, gen_opt, oracle, dis, num_batches):
+    pass
+
+
+def train_discriminator(discriminator, dis_opt, real_data_samples, generator, oracle, d_steps, epochs):
+    pass
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train Sequence GAN")
 
@@ -60,7 +73,7 @@ if __name__ == "__main__":
             args.device) if torch.cuda.is_available() else "cpu"
 
     oracle = Generator(GEN_EMBEDDING_DIM, GEN_HIDDEN_DIM,
-                       VOCAB_SIZE, MAX_SEQ_LEN)
+                       VOCAB_SIZE, MAX_SEQ_LEN, DEVICE)
 
     oracle = oracle.load_state_dict(torch.load(ORACLE_STATE_DICT_PATH))
     oracle_samples = torch.load(ORACLE_STATE_PATH).type(torch.LongTensor)
@@ -69,14 +82,16 @@ if __name__ == "__main__":
         GEN_EMBEDDING_DIM,
         GEN_HIDDEN_DIM,
         VOCAB_SIZE,
-        MAX_SEQ_LEN
+        MAX_SEQ_LEN,
+        DEVICE
     )
 
     dis = Discriminator(
         DIS_EMBEDDING_DIM,
         DIS_HIDDEN_DIM,
         VOCAB_SIZE,
-        MAX_SEQ_LEN
+        MAX_SEQ_LEN,
+        DEVICE
     )
 
     oracle = oracle.to(DEVICE)
@@ -87,3 +102,13 @@ if __name__ == "__main__":
     gen_optimizer = optim.Adam(gen.parameters(), lr=1e-2)
     train_generator_MLE(gen, gen_optimizer, oracle,
                         oracle_samples, MLE_TRAIN_EPOCHS)
+
+    dis_optimizer = optim.Adagrad(dis.parameters())
+    train_discriminator(dis, dis_optimizer, oracle_samples, gen, 50, 3)
+
+    oracle_loss = utils.batchwise_oracle_nll(gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN, start_letter=START_LETTER, DEVICE)
+
+    for epoch in range(ADV_TRAIN_EPOCHS):
+        train_generator_PG(gen, gen_optimizer, oracle, dis, 1)
+
+        train_discriminator(dis, dis_optimizer, oracle_samples, 3)

@@ -87,22 +87,22 @@ class Generator(nn.Module):
         """
         # inint the loss function
         loss_fn = nn.NLLLoss()
-        
+
         batch_size, seq_len = inp.size()
         # reverse dimensions
         inp = inp.permute(1, 0)  # seq_len * batch_sz
         # reverse dimensions
         target = target.permute(1, 0)
-        # init hidden state with 
+        # init hidden state with
         h = self.init_hidden(batch_size)
 
         loss = 0
 
         for i in range(seq_len):
-            # get the out and hidden state 
+            # get the out and hidden state
             out, h = self.forward(inp[i], h)
             # calculates the loss at every timestep
-            loss += loss_fn(out, target[i]) 
+            loss += loss_fn(out, target[i])
 
         return loss  # per batch
 
@@ -118,8 +118,11 @@ class Generator(nn.Module):
             inp should be target with <s> (start letter) prepended
         """
         batch_size, seq_len = inp.size()
-        inp = inp.permute(1, 0)
-        target = target.permute(1, 0)
+        # swap the dimensions
+        inp = inp.permute(1, 0) #  (seq_len x batch_size)
+        # swap the dimensions 
+        target = target.permute(1, 0) # (seq_len x batch_size)
+        # init hidden state
         h = self.init_hidden(batch_size)
 
         loss = 0
@@ -129,4 +132,4 @@ class Generator(nn.Module):
             for j in range(batch_size):
                 loss += -out[j][target.data[i][j]] * reward[j]
 
-        return loss / batch_sz
+        return loss / batch_size
