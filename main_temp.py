@@ -14,16 +14,112 @@ from discriminator import Discriminator
 import utils
 
 
-def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs):
-    pass
+def train_generator_MLE(gen, gen_opt, oracle, real_data_samples,
+                        start_letter, epochs, pos_neg_samples, batch_size, max_seq_len, device):
+    """
+    MLE Pretraining for Generator
+    gen: Generator Object
+    gen_opt: Optimizer for the Generator
+    real_data_samples: ground truth samples
+    """
+
+    for epoch in range(epochs):
+        total_loss = 0
+        # iterate through the dataset. i has step size batch_size
+        for i in range(0, pos_neg_samples, batch_size):
+            # prepare the inp and target data
+            # inp: (batch_size, max_seq_len)
+            # target (batch_size, max_seq_len)
+            inp, target = utils.prepare_generator_batch(
+                real_data_samples[i:i + batch_size],
+                start_letter=start_letter,
+                device=device
+            )
+            # zero the gradients
+            gen_opt.zero_grad()
+            # get batch loss
+            loss = gen.batchNLLLoss(inp, target)
+            # backpropagate
+            loss.backward()
+            # update params
+            gen_opt.step()
+            # add up the loss
+            total_loss += loss.data.item()
+
+            # if (i / batch_size) % ceil(ceil(pos_neg_samples / float(batch_size)) / 10.) == 0:
+            #     # LOGGER
+
+        total_loss = total_loss / ceil(
+            pos_neg_samples / float(batch_size)) / max_seq_len
+        # calculate oraclel loss
+        oracle_loss = utils.batchwise_oracle_nll(
+            gen,
+            oracle,
+            pos_neg_samples,
+            batch_size,
+            max_seq_len,
+            start_letter,
+            device
+        )
+
+        # print the average loss for generator and oracle
 
 
-def train_generator_PG(gen, gen_opt, oracle, dis, num_batches):
-    pass
+def train_generator_PG(gen, gen_opt, oracle, dis, pos_neg_samples, max_seq_len, batch_size, num_batches, device):
+
+    for _ in range(num_batches):
+        s = gen.samples(batch_size * 2)
+
+        inp, target = utils.prepare_generator_batch(
+            s,
+            start_letter,
+            device
+        )
+        # return the reward for the entire sequnce
+        rewards = dis.batchClassify(target)
+
+        gen_opt.zero_grad()
+        pg_loss = gen.batchPGLoss(inp, target, rewards)
+        pg_loss.backward()
+        gen_opt.step()
+
+    oracle_loss = utils.batchwise_oracle_nll(
+        gen,
+        oracle,
+        pos_neg_samples,
+        batch_size,
+        max_seq_len,
+        start_letter,
+        device
+    )
+
+    # print loss
 
 
 def train_discriminator(discriminator, dis_opt, real_data_samples, generator, oracle, d_steps, epochs):
-    pass
+    # get 100 samples
+    pos_val = oracle.sample(100)
+    # get 100 samples
+    neg_val = generator.sample(100)
+
+    val_inp, val_target = utils.prepare_discriminator_data(
+        pos_val, 
+        neg_val, 
+        device
+    )
+
+    for d_step in range(d_steps):
+        s = utils.batchwise_sample(generator, pos_neg_samples, batch_size)
+        dis_inp, dis_target = utils.prepare_discriminator_data(
+            real_data_samples, s, device
+        )
+
+        for epoch in range(epochs):
+            total_loss = 0
+            total_acc = 0
+
+            for i in range(0, 2 * pos_neg_samples, batch_size):
+                
 
 
 if __name__ == "__main__":

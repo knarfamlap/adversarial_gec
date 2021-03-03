@@ -130,6 +130,7 @@ class Generator(nn.Module):
             out, h = self.forward(inp[i], h)
 
             for j in range(batch_size):
+                # RMSProp ? 
                 loss += -out[j][target.data[i][j]] * reward[j]
 
         return loss / batch_size
