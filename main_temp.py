@@ -119,6 +119,26 @@ def train_discriminator(discriminator, dis_opt, real_data_samples, generator, or
             total_acc = 0
 
             for i in range(0, 2 * pos_neg_samples, batch_size):
+                inp, target = dis_inp[i:i + batch_size], dis_target[i:i + batch_size] 
+                dis_opt.zero_grad()
+                out = discriminator.batchClassify(inp) 
+
+                loss_fn = nn.BCELoss()
+                loss = loss_fn(out, target)
+                loss.backward()
+                dis_opt.step() 
+
+                total_loss += loss.data.item()
+                total_acc += torch.sum((out > 0.5) == (target > 0.5)).data.item() 
+
+
+            total_loss /= ceil(2 * pos_neg_samples / float(batch_size)) 
+            total_acc /= float(2 * pos_neg_samples) 
+
+            val_pred = discriminator.batchClassify(val_inp) 
+
+            
+
                 
 
 
