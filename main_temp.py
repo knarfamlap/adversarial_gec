@@ -63,6 +63,8 @@ def train_generator_MLE(gen, gen_opt, oracle, real_data_samples,
         )
 
         # print the average loss for generator and oracle
+        logger.info("Average Train NLL: {}, Oracle Sample NLL: {}".format(
+            total_loss, oracle_loss))
 
 
 def train_generator_PG(gen, gen_opt, oracle, dis, pos_neg_samples, max_seq_len, batch_size, num_batches, device):
@@ -93,7 +95,7 @@ def train_generator_PG(gen, gen_opt, oracle, dis, pos_neg_samples, max_seq_len, 
         device
     )
 
-    # print loss
+    logger.info("Oracle Sample NLL: {}".format(oracle_loss))
 
 
 def train_discriminator(discriminator, dis_opt, real_data_samples, generator, oracle, d_steps, epochs):
@@ -103,8 +105,8 @@ def train_discriminator(discriminator, dis_opt, real_data_samples, generator, or
     neg_val = generator.sample(100)
 
     val_inp, val_target = utils.prepare_discriminator_data(
-        pos_val, 
-        neg_val, 
+        pos_val,
+        neg_val,
         device
     )
 
@@ -115,31 +117,33 @@ def train_discriminator(discriminator, dis_opt, real_data_samples, generator, or
         )
 
         for epoch in range(epochs):
+            logger.info('d-step {} epoch {}: '.format(d_step + 1, epoch + 1))
             total_loss = 0
             total_acc = 0
 
             for i in range(0, 2 * pos_neg_samples, batch_size):
-                inp, target = dis_inp[i:i + batch_size], dis_target[i:i + batch_size] 
+                inp, target = dis_inp[i:i +
+                                      batch_size], dis_target[i:i + batch_size]
                 dis_opt.zero_grad()
-                out = discriminator.batchClassify(inp) 
+                out = discriminator.batchClassify(inp)
 
                 loss_fn = nn.BCELoss()
                 loss = loss_fn(out, target)
                 loss.backward()
-                dis_opt.step() 
+                dis_opt.step()
 
                 total_loss += loss.data.item()
-                total_acc += torch.sum((out > 0.5) == (target > 0.5)).data.item() 
+                total_acc += torch.sum((out > 0.5) ==
+                                       (target > 0.5)).data.item()
 
+            total_loss /= ceil(2 * pos_neg_samples / float(batch_size))
+            total_acc /= float(2 * pos_neg_samples)
 
-            total_loss /= ceil(2 * pos_neg_samples / float(batch_size)) 
-            total_acc /= float(2 * pos_neg_samples) 
-
-            val_pred = discriminator.batchClassify(val_inp) 
-
-            
-
-                
+            val_pred = discriminator.batchClassify(val_inp)
+            val_acc = torch.sum((val_pred > 0.5) == (
+                val_target > 0/5)).data.item() / 200.
+            logger.info("Average loss: {}, Train Acc: {}, Val Acc: {}".format(
+                total_loss, total_acc, val_acc))
 
 
 if __name__ == "__main__":
@@ -188,11 +192,15 @@ if __name__ == "__main__":
         DEVICE = "cuda:{}".format(
             args.device) if torch.cuda.is_available() else "cpu"
 
+    logger.info("Device in user: {}".format(DEVICE))
+
     oracle = Generator(GEN_EMBEDDING_DIM, GEN_HIDDEN_DIM,
                        VOCAB_SIZE, MAX_SEQ_LEN, DEVICE)
 
     oracle = oracle.load_state_dict(torch.load(ORACLE_STATE_DICT_PATH))
     oracle_samples = torch.load(ORACLE_STATE_PATH).type(torch.LongTensor)
+
+    logger.info("Loaded Oracle")
 
     gen = Generator(
         GEN_EMBEDDING_DIM,
@@ -202,6 +210,8 @@ if __name__ == "__main__":
         DEVICE
     )
 
+    logger.info("Loaded Generator")
+
     dis = Discriminator(
         DIS_EMBEDDING_DIM,
         DIS_HIDDEN_DIM,
@@ -210,15 +220,17 @@ if __name__ == "__main__":
         DEVICE
     )
 
+    logger.info("Loaded Discriminator")
+
     oracle = oracle.to(DEVICE)
     gen = gen.to(DEVICE)
     dis = dis.to(DEVICE)
     oracle_samples = oracle_samples.to(DEVICE)
-
+    logger.info("Loaded Optimizer for Generator")
     gen_optimizer = optim.Adam(gen.parameters(), lr=1e-2)
     train_generator_MLE(gen, gen_optimizer, oracle,
                         oracle_samples, MLE_TRAIN_EPOCHS)
-
+    logger.info("Loaded Optimizer for Discriminator")
     dis_optimizer = optim.Adagrad(dis.parameters())
     train_discriminator(dis, dis_optimizer, oracle_samples, gen, 50, 3)
 
