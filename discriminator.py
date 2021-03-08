@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class Discriminator(nn.Module):
-    def __init__(self, embedding_dim, hidden_dim, vocab_sz, max_seq_len, device, dropout=0.3):
+    def __init__(self, embedding_dim: int, hidden_dim: int, vocab_sz: int, max_seq_len: int, device: str, dropout=0.3):
         super(Discriminator, self).__init__()
         # hidden dimension for the hidden state
         self.hidden_dim = hidden_dim
@@ -20,12 +20,12 @@ class Discriminator(nn.Module):
         self.dropout_linear = nn.Dropout(p=dropout).to(device)
         self.hidden2out = nn.Linear(hidden_dim, 1).to(device)
 
-    def init_hidden(self, batch_sz):
+    def init_hidden(self, batch_sz: int) -> torch.Tensor:
         h = torch.zeros(2*2*1, batch_sz, self.hidden_dim, device=self.device)
 
         return h
 
-    def forward(self, x, hidden):
+    def forward(self, x: torch.Tensor, hidden: torch.Tensor) -> torch.Tensor:
         # embed input to batch_sz * seq_len * embedding_dim
         embed = self.embeddings(x)
         # change dimentions
@@ -39,12 +39,12 @@ class Discriminator(nn.Module):
         out = torch.sigmoid(out)
         return out
 
-    def batchClassify(self, inp):
+    def batchClassify(self, inp: torch.Tensor) -> torch.Tensor:
         h = self.init_hidden(inp.size()[0])
         out = self.forward(inp, h)
         return out.view(-1)
 
-    def batchBCELoss(self, x, target):
+    def batchBCELoss(self, x: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         loss_fn = nn.BCELoss()
         h = self.init_hidden(x.size()[0])
         out = self.forward(x, h)

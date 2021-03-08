@@ -3,6 +3,7 @@ import numpy as np
 import sys
 import pdb
 from logzero import logger
+from typing import List
 import argparse
 
 import torch
@@ -14,8 +15,8 @@ from discriminator import Discriminator
 import utils
 
 
-def train_generator_MLE(gen, gen_opt,  oracle, real_data_samples,
-                        start_letter, epochs, pos_neg_samples, batch_size, max_seq_len, device="cuda:0"):
+def train_generator_MLE(gen: Generator, gen_opt: torch.optim.Optimizer,  oracle: Generator, real_data_samples: List,
+                        start_letter: int, epochs: int, pos_neg_samples: int, batch_size: int, max_seq_len: int, device: str):
     """
     MLE Pretraining for Generator
     gen: Generator Object
@@ -67,8 +68,8 @@ def train_generator_MLE(gen, gen_opt,  oracle, real_data_samples,
             total_loss, oracle_loss))
 
 
-def train_generator_PG(gen, gen_opt, oracle, dis, pos_neg_samples, start_letter,
-                       max_seq_len, batch_size, num_batches, device="cuda:0"):
+def train_generator_PG(gen: Generator, gen_opt: optim.Optimizer, oracle: Generator, dis: Discriminator, pos_neg_samples: int, start_letter: int,
+                       max_seq_len: int, batch_size: int, num_batches: int, device: str):
 
     for _ in range(num_batches):
         s = gen.samples(batch_size * 2)
@@ -99,8 +100,8 @@ def train_generator_PG(gen, gen_opt, oracle, dis, pos_neg_samples, start_letter,
     logger.info("Oracle Sample NLL: {}".format(oracle_loss))
 
 
-def train_discriminator(discriminator, dis_opt, real_data_samples, generator,
-                        oracle, pos_neg_samples, start_letter, batch_size, d_steps, epochs, device="cuda:0"):
+def train_discriminator(discriminator: Discriminator, dis_opt: optim.Optimizer, real_data_samples: List, generator: Generator,
+                        oracle: Generator, pos_neg_samples: int, start_letter: int, batch_size: int, d_steps: int, epochs: int, device=str):
     # get 100 samples
     pos_val = oracle.sample(100, start_letter)
     # get 100 samples
@@ -113,7 +114,8 @@ def train_discriminator(discriminator, dis_opt, real_data_samples, generator,
     )
 
     for d_step in range(d_steps):
-        s = utils.batchwise_sample(generator, pos_neg_samples, start_letter, batch_size)
+        s = utils.batchwise_sample(
+            generator, pos_neg_samples, start_letter, batch_size)
         dis_inp, dis_target = utils.prepare_discriminator_data(
             real_data_samples, s, device
         )
@@ -171,8 +173,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     VOCAB_SIZE = args.vocab_size
-    MAX_SEQ_LEN = args.max_seq_len
-    START_LETTER = int(args.start_letter)
+    MAX_SEQ_LEN = args.max_seq_len 
+    START_LETTER = args.start_letter
     BATCH_SIZE = args.batch_size
     MLE_TRAIN_EPOCHS = args.mle_train_epochs
     ADV_TRAIN_EPOCHS = args.adv_train_epochs

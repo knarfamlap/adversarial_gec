@@ -3,9 +3,11 @@
 
 import torch
 from math import ceil
+from generator import Generator
+from typing import Tuple
 
 
-def prepare_generator_batch(samples, start_letter, device="cuda:0"):
+def prepare_generator_batch(samples: torch.Tensor, start_letter: int, device: str) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Takes samples (a batch) and returns
 
@@ -23,7 +25,7 @@ def prepare_generator_batch(samples, start_letter, device="cuda:0"):
     # set samples to target
     target = samples
     # set the first column in inp to the start_letter index
-    inp[:, 0] =  start_letter
+    inp[:, 0] = start_letter
     # sets the rest of the tensor to the target
     inp[:, 1:] = target[:, :seq_len-1]
 
@@ -36,7 +38,7 @@ def prepare_generator_batch(samples, start_letter, device="cuda:0"):
     return inp, target
 
 
-def prepare_discriminator_data(pos_samples, neg_samples, device="cuda:0"):
+def prepare_discriminator_data(pos_samples: torch.Tensor, neg_samples: torch.Tensor, device: str) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Takes positive (target) samples, negative (generator) samples and prepares inp and target data for discriminator.
 
@@ -78,7 +80,7 @@ def prepare_discriminator_data(pos_samples, neg_samples, device="cuda:0"):
     return inp, target
 
 
-def batchwise_sample(gen, num_samples, start_letter, batch_size):
+def batchwise_sample(gen: Generator, num_samples: int, start_letter: int, batch_size: int) -> torch.Tensor:
     """
     Sample num_samples samples batch_size samples at a time from gen.
     Does not require gpu since gen.sample() takes care of that.
@@ -91,7 +93,7 @@ def batchwise_sample(gen, num_samples, start_letter, batch_size):
     return torch.cat(samples, 0)[:num_samples]
 
 
-def batchwise_oracle_nll(gen, oracle, num_samples, batch_size, max_seq_len, start_letter, device):
+def batchwise_oracle_nll(gen: Generator, oracle: Generator, num_samples: int, batch_size: int, max_seq_len: int, start_letter: int, device: str) -> float:
     s = batchwise_sample(gen, num_samples, start_letter, batch_size)
     oracle_nll = 0
 
