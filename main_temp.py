@@ -23,7 +23,7 @@ def train_generator_MLE(gen, gen_opt, oracle, real_data_samples,
     real_data_samples: ground truth samples
     """
 
-    for epoch in range(epochs):
+    for _ in range(epochs):
         total_loss = 0
         # iterate through the dataset. i has step size batch_size
         for i in range(0, pos_neg_samples, batch_size):
@@ -67,7 +67,7 @@ def train_generator_MLE(gen, gen_opt, oracle, real_data_samples,
             total_loss, oracle_loss))
 
 
-def train_generator_PG(gen, gen_opt, oracle, dis, pos_neg_samples, max_seq_len, batch_size, num_batches, device):
+def train_generator_PG(gen, gen_opt, oracle, dis, pos_neg_samples, start_letter, max_seq_len, batch_size, num_batches, device):
 
     for _ in range(num_batches):
         s = gen.samples(batch_size * 2)
@@ -98,7 +98,7 @@ def train_generator_PG(gen, gen_opt, oracle, dis, pos_neg_samples, max_seq_len, 
     logger.info("Oracle Sample NLL: {}".format(oracle_loss))
 
 
-def train_discriminator(discriminator, dis_opt, real_data_samples, generator, oracle, d_steps, epochs):
+def train_discriminator(discriminator, dis_opt, real_data_samples, generator, oracle, pos_neg_samples, batch_size, d_steps, epochs, device):
     # get 100 samples
     pos_val = oracle.sample(100)
     # get 100 samples
@@ -192,15 +192,10 @@ if __name__ == "__main__":
         DEVICE = "cuda:{}".format(
             args.device) if torch.cuda.is_available() else "cpu"
 
-    logger.info("Device in user: {}".format(DEVICE))
+    logger.info("Device in use: {}".format(DEVICE))
 
-    oracle = Generator(GEN_EMBEDDING_DIM, GEN_HIDDEN_DIM,
-                       VOCAB_SIZE, MAX_SEQ_LEN, DEVICE)
-
-    oracle = oracle.load_state_dict(torch.load(ORACLE_STATE_DICT_PATH))
-    oracle_samples = torch.load(ORACLE_STATE_PATH).type(torch.LongTensor)
-
-    logger.info("Loaded Oracle")
+    # oracle = oracle.load_state_dict(torch.load(ORACLE_STATE_DICT_PATH))
+    # oracle_samples = torch.load(ORACLE_STATE_PATH).type(torch.LongTensor)
 
     gen = Generator(
         GEN_EMBEDDING_DIM,
@@ -211,6 +206,12 @@ if __name__ == "__main__":
     )
 
     logger.info("Loaded Generator")
+
+    oracle = Generator(GEN_EMBEDDING_DIM, GEN_HIDDEN_DIM,
+                       VOCAB_SIZE, MAX_SEQ_LEN, DEVICE, oracle_init=True)
+    oracle_samples = utils.batchwise_sample(gen, POS_NEG_SAMPLES, BATCH_SIZE)
+
+    logger.info("Loaded Oracle")
 
     dis = Discriminator(
         DIS_EMBEDDING_DIM,
@@ -228,15 +229,25 @@ if __name__ == "__main__":
     oracle_samples = oracle_samples.to(DEVICE)
     logger.info("Loaded Optimizer for Generator")
     gen_optimizer = optim.Adam(gen.parameters(), lr=1e-2)
+
+    logger.info("Starting Generator MLE Training...")
     train_generator_MLE(gen, gen_optimizer, oracle,
-                        oracle_samples, MLE_TRAIN_EPOCHS)
+                        oracle_samples, START_LETTER, MLE_TRAIN_EPOCHS, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN, DEVICE)
     logger.info("Loaded Optimizer for Discriminator")
     dis_optimizer = optim.Adagrad(dis.parameters())
-    train_discriminator(dis, dis_optimizer, oracle_samples, gen, 50, 3)
 
-    oracle_loss = utils.batchwise_oracle_nll(gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN, start_letter=START_LETTER, DEVICE)
+    logger.info("Starting Discriminator Training...")
+    train_discriminator(dis, dis_optimizer, oracle_samples,
+                        gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, 50, 3, DEVICE)
+
+    logger.info("Starting Adversarial Training...")
+    oracle_loss = utils.batchwise_oracle_nll(
+        gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN, DEVICE)
 
     for epoch in range(ADV_TRAIN_EPOCHS):
-        train_generator_PG(gen, gen_optimizer, oracle, dis, 1)
+        logger.info("EPOCH: {}".format(epoch + 1))
+        train_generator_PG(gen, gen_optimizer, oracle, dis,
+                           POS_NEG_SAMPLES, START_LETTER, MAX_SEQ_LEN, BATCH_SIZE,  1, DEVICE)
 
-        train_discriminator(dis, dis_optimizer, oracle_samples, 3)
+        train_discriminator(dis, dis_optimizer, oracle_samples,
+                            gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, 5, 3, DEVICE)

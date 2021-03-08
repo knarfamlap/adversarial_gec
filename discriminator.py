@@ -11,7 +11,7 @@ class Discriminator(nn.Module):
         self.embedding_dim = embedding_dim
         # maximum sequence length
         self.max_seq_len = max_seq_len
-        self.device
+        self.device = device
 
         self.embeddings = nn.Embedding(vocab_sz, embedding_dim)
         self.gru = nn.GRU(embedding_dim, hidden_dim,

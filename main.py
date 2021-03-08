@@ -41,7 +41,7 @@ def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs):
     """
 
     for epoch in range(epochs):
-        print("Epoch {}: ".format(epoch + 1), end=" ") 
+        print("Epoch {}: ".format(epoch + 1), end=" ")
         sys.stdout.flush()
         total_loss = 0
 
@@ -204,12 +204,12 @@ if __name__ == '__main__':
     # ADVERSARIAL TRAINING
     print('\nStarting Adversarial Training...')
     oracle_loss = utils.batchwise_oracle_nll(gen,
-                                               oracle,
-                                               POS_NEG_SAMPLES,
-                                               BATCH_SIZE,
-                                               MAX_SEQ_LEN,
-                                               start_letter=START_LETTER,
-                                               gpu=CUDA)
+                                             oracle,
+                                             POS_NEG_SAMPLES,
+                                             BATCH_SIZE,
+                                             MAX_SEQ_LEN,
+                                             start_letter=START_LETTER,
+                                             gpu=CUDA)
     print('\nInitial Oracle Sample Loss : %.4f' % oracle_loss)
 
     for epoch in range(ADV_TRAIN_EPOCHS):
