@@ -11,7 +11,7 @@ class Generator(nn.Module):
                  hidden_dim,
                  vocab_size,
                  max_seq_len,
-                 device,
+                 device="cuda:0",
                  oracle_init=False):
         super(Generator, self).__init__()
         # hidden state dim for GRU
@@ -26,11 +26,11 @@ class Generator(nn.Module):
         self.device = device
         # initialize an embedding for every word on the vocab
         # embedding vectors are size of embedding dim
-        self.embeddings = nn.Embedding(vocab_size, embedding_dim)
+        self.embeddings = nn.Embedding(vocab_size, embedding_dim).to(device)
         # init the GRU
-        self.gru = nn.GRU(embedding_dim, hidden_dim)
+        self.gru = nn.GRU(embedding_dim, hidden_dim).to(device)
         # linear layer that gives the logits
-        self.gru2out = nn.Linear(hidden_dim, vocab_size)
+        self.gru2out = nn.Linear(hidden_dim, vocab_size).to(device)
 
         if oracle_init:
             for p in self.parameters():
@@ -59,18 +59,18 @@ class Generator(nn.Module):
         out = F.log_softmax(out, dim=1)
         return out, hidden
 
-    def sample(self, n, start_letter=0):
+    def sample(self, n, start_letter):
         """
         Samples networks and returns n samples of length max_seq_len
 
         """
+
         # return zero matrix with n rows and max_seq_len rows
-        samples = torch.zeros(n, self.max_seq_len, device=self.device)
+        samples = torch.zeros(n, self.max_seq_len, dtype=torch.long, device=self.device)
         # init hidden state
         h = self.init_hidden(n)
         # create a long tensor
-        x = torch.tensor([start_letter] * n,
-                         dtype=torch.long, device=self.device)
+        x = torch.tensor([start_letter] * n, dtype=torch.long, device=self.device)
 
         for i in range(self.max_seq_len):
             out, h = self.forward(x, h)  # out: (n, vocab_size)
@@ -119,9 +119,9 @@ class Generator(nn.Module):
         """
         batch_size, seq_len = inp.size()
         # swap the dimensions
-        inp = inp.permute(1, 0) #  (seq_len x batch_size)
-        # swap the dimensions 
-        target = target.permute(1, 0) # (seq_len x batch_size)
+        inp = inp.permute(1, 0)  # (seq_len x batch_size)
+        # swap the dimensions
+        target = target.permute(1, 0)  # (seq_len x batch_size)
         # init hidden state
         h = self.init_hidden(batch_size)
 
@@ -130,7 +130,7 @@ class Generator(nn.Module):
             out, h = self.forward(inp[i], h)
 
             for j in range(batch_size):
-                # RMSProp ? 
+                # RMSProp ?
                 loss += -out[j][target.data[i][j]] * reward[j]
 
         return loss / batch_size

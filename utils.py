@@ -5,7 +5,7 @@ import torch
 from math import ceil
 
 
-def prepare_generator_batch(samples, start_letter=0, device="cuda"):
+def prepare_generator_batch(samples, start_letter, device="cuda:0"):
     """
     Takes samples (a batch) and returns
 
@@ -19,16 +19,16 @@ def prepare_generator_batch(samples, start_letter=0, device="cuda"):
     # get the dimensions of the samples tensor
     batch_size, seq_len = samples.size()
     # create a tensor with zeros of dimensions (batch_size, seq_len)
-    inp = torch.zeros(batch_size, seq_len)
+    inp = torch.zeros(batch_size, seq_len, dtype=torch.long, device=device)
     # set samples to target
     target = samples
     # set the first column in inp to the start_letter index
-    inp[:, 0] = start_letter
+    inp[:, 0] =  start_letter
     # sets the rest of the tensor to the target
     inp[:, 1:] = target[:, :seq_len-1]
-    
+
     inp = inp.detach().clone()
-    target = target.detach().clone() 
+    target = target.detach().clone()
 
     inp = inp.to(device)
     target = target.to(device)
@@ -36,7 +36,7 @@ def prepare_generator_batch(samples, start_letter=0, device="cuda"):
     return inp, target
 
 
-def prepare_discriminator_data(pos_samples, neg_samples, device="cuda"):
+def prepare_discriminator_data(pos_samples, neg_samples, device="cuda:0"):
     """
     Takes positive (target) samples, negative (generator) samples and prepares inp and target data for discriminator.
 
@@ -78,7 +78,7 @@ def prepare_discriminator_data(pos_samples, neg_samples, device="cuda"):
     return inp, target
 
 
-def batchwise_sample(gen, num_samples, batch_size):
+def batchwise_sample(gen, num_samples, start_letter, batch_size):
     """
     Sample num_samples samples batch_size samples at a time from gen.
     Does not require gpu since gen.sample() takes care of that.
@@ -86,13 +86,13 @@ def batchwise_sample(gen, num_samples, batch_size):
 
     samples = []
     for _ in range(int(ceil(num_samples/float(batch_size)))):
-        samples.append(gen.sample(batch_size))
+        samples.append(gen.sample(batch_size, start_letter))
 
     return torch.cat(samples, 0)[:num_samples]
 
 
-def batchwise_oracle_nll(gen, oracle, num_samples, batch_size, max_seq_len,  device, start_letter=0):
-    s = batchwise_sample(gen, num_samples, batch_size)
+def batchwise_oracle_nll(gen, oracle, num_samples, batch_size, max_seq_len, start_letter, device):
+    s = batchwise_sample(gen, num_samples, start_letter, batch_size)
     oracle_nll = 0
 
     for i in range(0, num_samples, batch_size):

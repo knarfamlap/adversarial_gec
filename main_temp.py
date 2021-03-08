@@ -14,8 +14,8 @@ from discriminator import Discriminator
 import utils
 
 
-def train_generator_MLE(gen, gen_opt, oracle, real_data_samples,
-                        start_letter, epochs, pos_neg_samples, batch_size, max_seq_len, device):
+def train_generator_MLE(gen, gen_opt,  oracle, real_data_samples,
+                        start_letter, epochs, pos_neg_samples, batch_size, max_seq_len, device="cuda:0"):
     """
     MLE Pretraining for Generator
     gen: Generator Object
@@ -67,7 +67,8 @@ def train_generator_MLE(gen, gen_opt, oracle, real_data_samples,
             total_loss, oracle_loss))
 
 
-def train_generator_PG(gen, gen_opt, oracle, dis, pos_neg_samples, start_letter, max_seq_len, batch_size, num_batches, device):
+def train_generator_PG(gen, gen_opt, oracle, dis, pos_neg_samples, start_letter,
+                       max_seq_len, batch_size, num_batches, device="cuda:0"):
 
     for _ in range(num_batches):
         s = gen.samples(batch_size * 2)
@@ -98,11 +99,12 @@ def train_generator_PG(gen, gen_opt, oracle, dis, pos_neg_samples, start_letter,
     logger.info("Oracle Sample NLL: {}".format(oracle_loss))
 
 
-def train_discriminator(discriminator, dis_opt, real_data_samples, generator, oracle, pos_neg_samples, batch_size, d_steps, epochs, device):
+def train_discriminator(discriminator, dis_opt, real_data_samples, generator,
+                        oracle, pos_neg_samples, start_letter, batch_size, d_steps, epochs, device="cuda:0"):
     # get 100 samples
-    pos_val = oracle.sample(100)
+    pos_val = oracle.sample(100, start_letter)
     # get 100 samples
-    neg_val = generator.sample(100)
+    neg_val = generator.sample(100, start_letter)
 
     val_inp, val_target = utils.prepare_discriminator_data(
         pos_val,
@@ -111,7 +113,7 @@ def train_discriminator(discriminator, dis_opt, real_data_samples, generator, or
     )
 
     for d_step in range(d_steps):
-        s = utils.batchwise_sample(generator, pos_neg_samples, batch_size)
+        s = utils.batchwise_sample(generator, pos_neg_samples, start_letter, batch_size)
         dis_inp, dis_target = utils.prepare_discriminator_data(
             real_data_samples, s, device
         )
@@ -170,7 +172,7 @@ if __name__ == "__main__":
 
     VOCAB_SIZE = args.vocab_size
     MAX_SEQ_LEN = args.max_seq_len
-    START_LETTER = args.start_letter
+    START_LETTER = int(args.start_letter)
     BATCH_SIZE = args.batch_size
     MLE_TRAIN_EPOCHS = args.mle_train_epochs
     ADV_TRAIN_EPOCHS = args.adv_train_epochs
@@ -209,7 +211,8 @@ if __name__ == "__main__":
 
     oracle = Generator(GEN_EMBEDDING_DIM, GEN_HIDDEN_DIM,
                        VOCAB_SIZE, MAX_SEQ_LEN, DEVICE, oracle_init=True)
-    oracle_samples = utils.batchwise_sample(gen, POS_NEG_SAMPLES, BATCH_SIZE)
+    oracle_samples = utils.batchwise_sample(
+        gen, POS_NEG_SAMPLES, START_LETTER, BATCH_SIZE)
 
     logger.info("Loaded Oracle")
 
@@ -227,6 +230,7 @@ if __name__ == "__main__":
     gen = gen.to(DEVICE)
     dis = dis.to(DEVICE)
     oracle_samples = oracle_samples.to(DEVICE)
+
     logger.info("Loaded Optimizer for Generator")
     gen_optimizer = optim.Adam(gen.parameters(), lr=1e-2)
 
@@ -242,7 +246,7 @@ if __name__ == "__main__":
 
     logger.info("Starting Adversarial Training...")
     oracle_loss = utils.batchwise_oracle_nll(
-        gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN, DEVICE)
+        gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN, START_LETTER, DEVICE)
 
     for epoch in range(ADV_TRAIN_EPOCHS):
         logger.info("EPOCH: {}".format(epoch + 1))

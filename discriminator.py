@@ -13,12 +13,12 @@ class Discriminator(nn.Module):
         self.max_seq_len = max_seq_len
         self.device = device
 
-        self.embeddings = nn.Embedding(vocab_sz, embedding_dim)
+        self.embeddings = nn.Embedding(vocab_sz, embedding_dim).to(device)
         self.gru = nn.GRU(embedding_dim, hidden_dim,
-                          num_layers=2, bidirectional=True, dropout=dropout)
-        self.gru2hidden = nn.Linear(2 * 2 * hidden_dim, hidden_dim)
-        self.dropout_linear = nn.Dropout(p=dropout)
-        self.hidden2out = nn.Linear(hidden_dim, 1)
+                          num_layers=2, bidirectional=True, dropout=dropout).to(device)
+        self.gru2hidden = nn.Linear(2 * 2 * hidden_dim, hidden_dim).to(device)
+        self.dropout_linear = nn.Dropout(p=dropout).to(device)
+        self.hidden2out = nn.Linear(hidden_dim, 1).to(device)
 
     def init_hidden(self, batch_sz):
         h = torch.zeros(2*2*1, batch_sz, self.hidden_dim, device=self.device)
