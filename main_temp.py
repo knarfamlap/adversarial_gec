@@ -259,7 +259,7 @@ if __name__ == "__main__":
 
     logger.info("Starting Discriminator Training...")
     train_discriminator(dis, dis_optimizer, oracle_samples,
-                        gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, 50, 3, DEVICE)
+                        gen, oracle, POS_NEG_SAMPLES, START_LETTER, BATCH_SIZE, 50, 3, DEVICE)
 
     logger.info("Starting Adversarial Training...")
     oracle_loss = utils.batchwise_oracle_nll(
@@ -271,7 +271,7 @@ if __name__ == "__main__":
                            POS_NEG_SAMPLES, START_LETTER, MAX_SEQ_LEN, BATCH_SIZE,  1, DEVICE)
 
         train_discriminator(dis, dis_optimizer, oracle_samples,
-                            gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, 5, 3, DEVICE)
+                            gen, oracle, POS_NEG_SAMPLES, START_LETTER, BATCH_SIZE, 5, 3, DEVICE)
 
     save_dir_path = os.path.abspath(SAVE_DIR)
     torch.save(oracle.state_dict(), save_dir_path)
