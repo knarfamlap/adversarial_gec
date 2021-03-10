@@ -71,7 +71,7 @@ def train_generator_PG(gen: Generator, gen_opt: optim.Optimizer, oracle: Generat
                        max_seq_len: int, batch_size: int, num_batches: int, device: str):
 
     for _ in range(num_batches):
-        s = gen.samples(batch_size * 2)
+        s = gen.sample(batch_size * 2, start_letter)
 
         inp, target = utils.prepare_generator_batch(
             s,
@@ -259,7 +259,7 @@ if __name__ == "__main__":
 
     logger.info("Starting Discriminator Training...")
     train_discriminator(dis, dis_optimizer, oracle_samples,
-                        gen, oracle, POS_NEG_SAMPLES, START_LETTER, BATCH_SIZE, 50, 3, DEVICE)
+                        gen, oracle, POS_NEG_SAMPLES, START_LETTER, BATCH_SIZE, 1, 3, DEVICE)
 
     logger.info("Starting Adversarial Training...")
     oracle_loss = utils.batchwise_oracle_nll(
@@ -271,9 +271,16 @@ if __name__ == "__main__":
                            POS_NEG_SAMPLES, START_LETTER, MAX_SEQ_LEN, BATCH_SIZE,  1, DEVICE)
 
         train_discriminator(dis, dis_optimizer, oracle_samples,
-                            gen, oracle, POS_NEG_SAMPLES, START_LETTER, BATCH_SIZE, 5, 3, DEVICE)
+                            gen, oracle, POS_NEG_SAMPLES, START_LETTER, BATCH_SIZE, 1, 3, DEVICE)
 
     save_dir_path = os.path.abspath(SAVE_DIR)
-    torch.save(oracle.state_dict(), save_dir_path)
-    torch.save(gen.state_dict(), save_dir_path)
-    torch.save(dis.state_dict(), save_dir_path)
+    oracle_dest = os.path.join(save_dir_path, "oracle.pt")
+    gen_dest = os.path.join(save_dir_path, "gen.pt")
+    dis_dest = os.path.join(save_dir_path, "dis.pt")
+
+    torch.save(oracle.state_dict(), oracle_dest)
+    logger.info("Oracle saved to: {} ".format(oracle_dest))
+    torch.save(gen.state_dict(), gen_dest)
+    logger.info("Generator saved to: {} ".format(gen_dest))
+    torch.save(dis.state_dict(), dis_dest)
+    logger.info("Discriminator saved to: {} ".format(dis_dest))

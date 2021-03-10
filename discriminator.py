@@ -31,7 +31,7 @@ class Discriminator(nn.Module):
         # change dimentions
         embed = embed.permute(1, 0, 2)  # seq_len * batch_sz * embedding_dim
         _, hidden = self.gru(embed, hidden)  # 4 * batch_sz * hidden_dim
-        hidden = hidden.permute(1, 0, 2).contigous()
+        hidden = hidden.permute(1, 0, 2).contiguous()
         out = self.gru2hidden(hidden.view(-1, 4 * self.hidden_dim))
         out = torch.tanh(out)
         out = self.dropout_linear(out)
