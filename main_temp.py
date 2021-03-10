@@ -2,6 +2,7 @@ from math import ceil
 import numpy as np
 import sys
 import pdb
+import os
 from logzero import logger
 from typing import List
 import argparse
@@ -15,7 +16,7 @@ from discriminator import Discriminator
 import utils
 
 
-def train_generator_MLE(gen: Generator, gen_opt: torch.optim.Optimizer,  oracle: Generator, real_data_samples: List,
+def train_generator_MLE(gen: Generator, gen_opt: optim.Optimizer,  oracle: Generator, real_data_samples: List,
                         start_letter: int, epochs: int, pos_neg_samples: int, batch_size: int, max_seq_len: int, device: str):
     """
     MLE Pretraining for Generator
@@ -24,7 +25,8 @@ def train_generator_MLE(gen: Generator, gen_opt: torch.optim.Optimizer,  oracle:
     real_data_samples: ground truth samples
     """
 
-    for _ in range(epochs):
+    for epoch in range(epochs):
+        logger.info("Epoch: {} ".format(epoch + 1))
         total_loss = 0
         # iterate through the dataset. i has step size batch_size
         for i in range(0, pos_neg_samples, batch_size):
@@ -46,9 +48,6 @@ def train_generator_MLE(gen: Generator, gen_opt: torch.optim.Optimizer,  oracle:
             gen_opt.step()
             # add up the loss
             total_loss += loss.data.item()
-
-            # if (i / batch_size) % ceil(ceil(pos_neg_samples / float(batch_size)) / 10.) == 0:
-            #     # LOGGER
 
         total_loss = total_loss / ceil(
             pos_neg_samples / float(batch_size)) / max_seq_len
@@ -80,6 +79,7 @@ def train_generator_PG(gen: Generator, gen_opt: optim.Optimizer, oracle: Generat
             device
         )
         # return the reward for the entire sequnce
+        # reward is provided by the discriminator
         rewards = dis.batchClassify(target)
 
         gen_opt.zero_grad()
@@ -169,26 +169,28 @@ if __name__ == "__main__":
     parser.add_argument("--oracle_state_dict_path", type=str)
     parser.add_argument("--pretrained_gen_path", type=str)
     parser.add_argument("--pretrained_dis_path", type=str)
+    parser.add_argument("--save_dir", type=str)
 
     args = parser.parse_args()
 
-    VOCAB_SIZE = args.vocab_size
-    MAX_SEQ_LEN = args.max_seq_len 
-    START_LETTER = args.start_letter
-    BATCH_SIZE = args.batch_size
-    MLE_TRAIN_EPOCHS = args.mle_train_epochs
-    ADV_TRAIN_EPOCHS = args.adv_train_epochs
-    POS_NEG_SAMPLES = args.pos_neg_samples
+    VOCAB_SIZE: int = args.vocab_size
+    MAX_SEQ_LEN: int = args.max_seq_len
+    START_LETTER: int = args.start_letter
+    BATCH_SIZE: int = args.batch_size
+    MLE_TRAIN_EPOCHS: int = args.mle_train_epochs
+    ADV_TRAIN_EPOCHS: int = args.adv_train_epochs
+    POS_NEG_SAMPLES: int = args.pos_neg_samples
 
-    GEN_EMBEDDING_DIM = args.gen_embedding_dim
-    GEN_HIDDEN_DIM = args.gen_hidden_dim
-    DIS_EMBEDDING_DIM = args.dis_embedding_dim
-    DIS_HIDDEN_DIM = args.dis_hidden_dim
+    GEN_EMBEDDING_DIM: int = args.gen_embedding_dim
+    GEN_HIDDEN_DIM: int = args.gen_hidden_dim
+    DIS_EMBEDDING_DIM: int = args.dis_embedding_dim
+    DIS_HIDDEN_DIM: int = args.dis_hidden_dim
 
-    ORACLE_STATE_PATH = args.oracle_state_path
-    ORACLE_STATE_DICT_PATH = args.oracle_state_dict_path
-    PRETRAINED_GEN_PATH = args.pretrained_gen_path
-    PRETRAINED_DIS_PATH = args.pretrained_dis_path
+    ORACLE_STATE_PATH: str = args.oracle_state_path
+    ORACLE_STATE_DICT_PATH: str = args.oracle_state_dict_path
+    PRETRAINED_GEN_PATH: str = args.pretrained_gen_path
+    PRETRAINED_DIS_PATH: str = args.pretrained_dis_path
+    SAVE_DIR: str = args.save_dir
 
     if args.device == "cpu":
         DEVICE = "cpu"
@@ -198,40 +200,53 @@ if __name__ == "__main__":
 
     logger.info("Device in use: {}".format(DEVICE))
 
-    # oracle = oracle.load_state_dict(torch.load(ORACLE_STATE_DICT_PATH))
+    # oracle = torch.load_state_dict(torch.load(ORACLE_STATE_DICT_PATH))
     # oracle_samples = torch.load(ORACLE_STATE_PATH).type(torch.LongTensor)
 
-    gen = Generator(
-        GEN_EMBEDDING_DIM,
-        GEN_HIDDEN_DIM,
-        VOCAB_SIZE,
-        MAX_SEQ_LEN,
-        DEVICE
-    )
+    if PRETRAINED_GEN_PATH is None:
+        gen = Generator(
+            GEN_EMBEDDING_DIM,
+            GEN_HIDDEN_DIM,
+            VOCAB_SIZE,
+            MAX_SEQ_LEN,
+            DEVICE
+        )
+    else:
+        gen = torch.load(PRETRAINED_GEN_PATH)
 
     logger.info("Loaded Generator")
 
-    oracle = Generator(GEN_EMBEDDING_DIM, GEN_HIDDEN_DIM,
-                       VOCAB_SIZE, MAX_SEQ_LEN, DEVICE, oracle_init=True)
-    oracle_samples = utils.batchwise_sample(
-        gen, POS_NEG_SAMPLES, START_LETTER, BATCH_SIZE)
+    if ORACLE_STATE_DICT_PATH is None:
+        oracle = Generator(GEN_EMBEDDING_DIM, GEN_HIDDEN_DIM,
+                           VOCAB_SIZE, MAX_SEQ_LEN, DEVICE, oracle_init=True)
+
+        oracle_samples = utils.batchwise_sample(
+            gen, POS_NEG_SAMPLES, START_LETTER, BATCH_SIZE)
+
+    else:
+        oracle = torch.load_state_dict(torch.load(ORACLE_STATE_DICT_PATH))
+        oracle_samples = torch.load(ORACLE_STATE_PATH).type(torch.LongTensor)
 
     logger.info("Loaded Oracle")
 
-    dis = Discriminator(
-        DIS_EMBEDDING_DIM,
-        DIS_HIDDEN_DIM,
-        VOCAB_SIZE,
-        MAX_SEQ_LEN,
-        DEVICE
-    )
+    if PRETRAINED_DIS_PATH is None:
+        dis = Discriminator(
+            DIS_EMBEDDING_DIM,
+            DIS_HIDDEN_DIM,
+            VOCAB_SIZE,
+            MAX_SEQ_LEN,
+            DEVICE
+        )
+
+    else:
+        dis = torch.load(PRETRAINED_DIS_PATH)
 
     logger.info("Loaded Discriminator")
 
     oracle = oracle.to(DEVICE)
     gen = gen.to(DEVICE)
     dis = dis.to(DEVICE)
-    oracle_samples = oracle_samples.to(DEVICE)
+    oracle_samples: torch.Tensor = oracle_samples.to(DEVICE)
 
     logger.info("Loaded Optimizer for Generator")
     gen_optimizer = optim.Adam(gen.parameters(), lr=1e-2)
@@ -257,3 +272,8 @@ if __name__ == "__main__":
 
         train_discriminator(dis, dis_optimizer, oracle_samples,
                             gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, 5, 3, DEVICE)
+
+    save_dir_path = os.path.abspath(SAVE_DIR)
+    torch.save(oracle.state_dict(), save_dir_path)
+    torch.save(gen.state_dict(), save_dir_path)
+    torch.save(dis.state_dict(), save_dir_path)
